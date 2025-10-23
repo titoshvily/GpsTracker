@@ -1,32 +1,48 @@
 package com.titoshvily.gpstracker.fragments
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
 import com.titoshvily.gpstracker.R
-import com.titoshvily.gpstracker.databinding.FragmentMainBinding
-import com.titoshvily.gpstracker.databinding.SettingsBinding
-import com.titoshvily.gpstracker.databinding.ViewTrackBinding
+import com.titoshvily.gpstracker.utils.showToast
 
 
-class SettingsFragment : Fragment() {
-    lateinit var binding: SettingsBinding
+class SettingsFragment : PreferenceFragmentCompat() {
+
+    private lateinit var timePref: Preference
 
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        binding = SettingsBinding.inflate(inflater, container, false)
+    override fun onCreatePreferences(
+        savedInstanceState: Bundle?,
+        rootKey: String?
+    ) {
 
-        return binding.root
+    setPreferencesFromResource(R.xml.main_preference, rootKey)
+        init()
     }
 
-    companion object {
 
-        @JvmStatic
-        fun newInstance() = SettingsFragment()
+    private fun init(){
+        timePref = findPreference("update_time_key")!!
+        val changeListener = onChangeListener()
+        timePref.onPreferenceChangeListener = changeListener
+
     }
+
+    private fun onChangeListener(): Preference.OnPreferenceChangeListener {
+
+        return Preference.OnPreferenceChangeListener {
+            pref, value ->
+            val nameArray = resources.getStringArray(R.array.loc_time_update_name)
+            val valueArray = resources.getStringArray(R.array.loc_time_update_value)
+                val title = pref.title.toString().substringBefore(":")
+            val pos = valueArray.indexOf(value)
+            pref.title = "$title: ${nameArray[pos]}"
+            true
+
+        }
+    }
+
+
+
 }

@@ -30,7 +30,7 @@ class MainActivity : AppCompatActivity() {
             when(it.itemId) {
                 R.id.home -> openFragment(MainFragment.newInstance())
                 R.id.tracks -> openFragment(TracksFragment.newInstance())
-                R.id.settings -> openFragment(SettingsFragment.newInstance())
+                R.id.settings -> openFragment(SettingsFragment())
             }
 
             true
