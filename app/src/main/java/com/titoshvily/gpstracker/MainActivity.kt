@@ -7,6 +7,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.titoshvily.gpstracker.databinding.ActivityMainBinding
+import com.titoshvily.gpstracker.fragments.MainFragment
+import com.titoshvily.gpstracker.fragments.SettingsFragment
+import com.titoshvily.gpstracker.fragments.TracksFragment
+import com.titoshvily.gpstracker.utils.openFragment
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -16,6 +20,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         onBottomNavClicks()
+        openFragment(MainFragment.newInstance())
 
     }
 
@@ -23,9 +28,9 @@ class MainActivity : AppCompatActivity() {
     private fun onBottomNavClicks(){
         binding.bNav.setOnItemSelectedListener {
             when(it.itemId) {
-                R.id.home -> Toast.makeText(this, "Home", Toast.LENGTH_SHORT).show()
-                R.id.tracks -> Toast.makeText(this, "tracks", Toast.LENGTH_SHORT).show()
-                R.id.settings -> Toast.makeText(this, "settings", Toast.LENGTH_SHORT).show()
+                R.id.home -> openFragment(MainFragment.newInstance())
+                R.id.tracks -> openFragment(TracksFragment.newInstance())
+                R.id.settings -> openFragment(SettingsFragment.newInstance())
             }
 
             true
