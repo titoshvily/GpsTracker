@@ -26,6 +26,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
         timePref = findPreference("update_time_key")!!
         val changeListener = onChangeListener()
         timePref.onPreferenceChangeListener = changeListener
+        initPrefs()
 
     }
 
@@ -35,12 +36,21 @@ class SettingsFragment : PreferenceFragmentCompat() {
             pref, value ->
             val nameArray = resources.getStringArray(R.array.loc_time_update_name)
             val valueArray = resources.getStringArray(R.array.loc_time_update_value)
-                val title = pref.title.toString().substringBefore(":")
+            val title = pref.title.toString().substringBefore(":")
             val pos = valueArray.indexOf(value)
             pref.title = "$title: ${nameArray[pos]}"
             true
 
         }
+    }
+
+    private fun initPrefs() {
+        val pref = timePref.preferenceManager.sharedPreferences
+        val nameArray = resources.getStringArray(R.array.loc_time_update_name)
+        val valueArray = resources.getStringArray(R.array.loc_time_update_value)
+        val title = timePref.title
+        val pos = valueArray.indexOf(pref?.getString("update_time_key", "3000"))
+        timePref.title = "$title: ${nameArray[pos]}"
     }
 
 
