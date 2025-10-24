@@ -17,4 +17,20 @@
 
     </string-array>
 
+    <string-array name="color_name">
+
+        <item>Blue</item>
+        <item>Red</item>
+        <item>Black</item>
+
+    </string-array>
+
+    <string-array name="color_value">
+
+        <item>#377BB4</item>
+        <item>#D53838</item>
+        <item>#313030</item>
+
+    </string-array>
+
 </resources>

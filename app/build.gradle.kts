@@ -40,6 +40,9 @@ android {
 
 dependencies {
 
+    implementation("org.osmdroid:osmdroid-android:6.1.10")
+    implementation("com.github.MKergall:osmbonuspack:6.7.0")
+
     implementation(libs.androidx.preference.ktx)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
