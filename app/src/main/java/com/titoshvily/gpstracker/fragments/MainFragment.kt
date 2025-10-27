@@ -6,8 +6,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -18,7 +20,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.fragment.app.Fragment
 import com.google.android.material.snackbar.Snackbar
+import com.titoshvily.gpstracker.R
 import com.titoshvily.gpstracker.databinding.FragmentMainBinding
+import com.titoshvily.gpstracker.location.LocationService
 import com.titoshvily.gpstracker.utils.DialogManager
 import org.osmdroid.config.Configuration
 import org.osmdroid.library.BuildConfig
@@ -26,11 +30,11 @@ import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
 class MainFragment : Fragment() {
-
+    private var isServiceRunning = false
     private lateinit var binding: FragmentMainBinding
     private lateinit var requestLocationLauncher: ActivityResultLauncher<Array<String>>
 
-    // --- Жизненный цикл фрагмента ---
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,8 +51,15 @@ class MainFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        registerPermissionLauncher()
+        setOnClicks()
         checkLocationPermission()
+        checkServiceState()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+            activity?.startForegroundService(Intent(activity, LocationService::class.java))
+        } else {
+            activity?.startService(Intent(activity, LocationService::class.java))
+        }
+
     }
 
     override fun onResume() {
@@ -84,16 +95,60 @@ class MainFragment : Fragment() {
     private fun registerPermissionLauncher() {
         requestLocationLauncher =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-                // Проверяем, было ли дано основное разрешение
+
                 if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
-                    // Разрешение получено, теперь проверяем GPS и инициализируем карту
+
                     checkGpsAndInitMap()
+
                 } else {
-                    // Разрешение не было дано. Показываем объяснение.
+
                     showPermissionExplanationDialog("Для работы карты необходимо разрешение на геолокацию.")
                 }
             }
     }
+
+    private fun setOnClicks() = with(binding){
+        val listener = onClicks()
+        fStartStop.setOnClickListener(listener)
+    }
+
+    private fun startStopService(){
+        if (!isServiceRunning) {
+            startLocationService()
+        } else {
+            activity?.stopService(Intent(activity, LocationService::class.java))
+            binding.fStartStop.setImageResource(R.drawable.ic_play)
+        }
+        isServiceRunning = !isServiceRunning
+
+    }
+
+    private fun onClicks(): View.OnClickListener{
+        return View.OnClickListener{
+            when(it.id){
+                R.id.fStartStop ->  {startStopService()}
+            }
+        }
+    }
+
+    private fun checkServiceState(){
+        isServiceRunning = LocationService.isRunning
+        if (isServiceRunning) {
+            binding.fStartStop.setImageResource(R.drawable.ic_stop)
+        }
+    }
+
+    private fun startLocationService() {
+            val intent = Intent(requireContext(), LocationService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                requireContext().startForegroundService(intent)
+            } else {
+                requireContext().startService(intent)
+            }
+        binding.fStartStop.setImageResource(R.drawable.ic_stop)
+    }
+
+
 
 
     private fun checkLocationPermission() {
