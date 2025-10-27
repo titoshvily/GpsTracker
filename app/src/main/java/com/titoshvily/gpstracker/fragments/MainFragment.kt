@@ -19,21 +19,27 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.MutableLiveData
 import com.google.android.material.snackbar.Snackbar
 import com.titoshvily.gpstracker.R
 import com.titoshvily.gpstracker.databinding.FragmentMainBinding
 import com.titoshvily.gpstracker.location.LocationService
 import com.titoshvily.gpstracker.utils.DialogManager
+import com.titoshvily.gpstracker.utils.TimeUtils
 import org.osmdroid.config.Configuration
 import org.osmdroid.library.BuildConfig
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
+import java.util.Timer
+import java.util.TimerTask
 
 class MainFragment : Fragment() {
+    private var timer: Timer? = null
+    private var startTime = 0L
+    private val timeData = MutableLiveData<String>()
     private var isServiceRunning = false
     private lateinit var binding: FragmentMainBinding
     private lateinit var requestLocationLauncher: ActivityResultLauncher<Array<String>>
-
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +60,8 @@ class MainFragment : Fragment() {
         setOnClicks()
         checkLocationPermission()
         checkServiceState()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+        updateTime()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             activity?.startForegroundService(Intent(activity, LocationService::class.java))
         } else {
             activity?.startService(Intent(activity, LocationService::class.java))
@@ -85,8 +92,8 @@ class MainFragment : Fragment() {
         mLocOverlay.enableMyLocation()
         mLocOverlay.enableFollowLocation()
         mLocOverlay.runOnFirstFix {
-                map.overlays.clear()
-                map.overlays.add(mLocOverlay)
+            map.overlays.clear()
+            map.overlays.add(mLocOverlay)
         }
 
     }
@@ -107,48 +114,78 @@ class MainFragment : Fragment() {
             }
     }
 
-    private fun setOnClicks() = with(binding){
+    private fun setOnClicks() = with(binding) {
         val listener = onClicks()
         fStartStop.setOnClickListener(listener)
     }
 
-    private fun startStopService(){
+    private fun updateTime(){
+        timeData.observe(viewLifecycleOwner){
+            binding.tvTime.text = it
+        }
+    }
+
+    private fun startTimer(){
+        timer?.cancel()
+        timer = Timer()
+        startTime = LocationService.startTime
+        timer?.schedule(object : TimerTask(){
+            override fun run() {
+                activity?.runOnUiThread {
+                    timeData.value = getCurrentTime()
+                }
+            }
+
+        }, 1000, 1000)
+    }
+
+    private fun getCurrentTime(): String{
+        return "Time: ${TimeUtils.getTime(System.currentTimeMillis() - startTime)}"
+    }
+
+
+
+    private fun startStopService() {
         if (!isServiceRunning) {
             startLocationService()
         } else {
             activity?.stopService(Intent(activity, LocationService::class.java))
             binding.fStartStop.setImageResource(R.drawable.ic_play)
+            timer?.cancel()
         }
         isServiceRunning = !isServiceRunning
 
     }
 
-    private fun onClicks(): View.OnClickListener{
-        return View.OnClickListener{
-            when(it.id){
-                R.id.fStartStop ->  {startStopService()}
+    private fun onClicks(): View.OnClickListener {
+        return View.OnClickListener {
+            when (it.id) {
+                R.id.fStartStop -> {
+                    startStopService()
+                }
             }
         }
     }
 
-    private fun checkServiceState(){
+    private fun checkServiceState() {
         isServiceRunning = LocationService.isRunning
         if (isServiceRunning) {
             binding.fStartStop.setImageResource(R.drawable.ic_stop)
+            startTimer()
         }
     }
 
     private fun startLocationService() {
-            val intent = Intent(requireContext(), LocationService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                requireContext().startForegroundService(intent)
-            } else {
-                requireContext().startService(intent)
-            }
+        val intent = Intent(requireContext(), LocationService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            requireContext().startForegroundService(intent)
+        } else {
+            requireContext().startService(intent)
+        }
         binding.fStartStop.setImageResource(R.drawable.ic_stop)
+        LocationService.startTime = System.currentTimeMillis()
+        startTimer()
     }
-
-
 
 
     private fun checkLocationPermission() {
@@ -157,9 +194,11 @@ class MainFragment : Fragment() {
             isPermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION) -> {
                 checkGpsAndInitMap()
             }
+
             shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) -> {
                 showPermissionExplanationDialog("Для работы карты нужно разрешение, без него никак.")
             }
+
             else -> {
                 requestLocationLauncher.launch(getPermissionsToRequest())
             }
@@ -172,7 +211,7 @@ class MainFragment : Fragment() {
             initOsm()
         } else {
             DialogManager.showLocEnableDialog(requireActivity() as AppCompatActivity, object :
-                DialogManager.Listener{
+                DialogManager.Listener {
                 override fun onClick() {
                     startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                 }
@@ -180,8 +219,6 @@ class MainFragment : Fragment() {
             })
         }
     }
-
-
 
 
     private fun getPermissionsToRequest(): Array<String> {
@@ -193,7 +230,10 @@ class MainFragment : Fragment() {
 
     // Проверяет, дано ли конкретное разрешение
     private fun isPermissionGranted(permission: String): Boolean {
-        return ContextCompat.checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED
+        return ContextCompat.checkSelfPermission(
+            requireContext(),
+            permission
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     // Проверяет, включен ли GPS
@@ -213,7 +253,6 @@ class MainFragment : Fragment() {
             }
             .show()
     }
-
 
 
     companion object {

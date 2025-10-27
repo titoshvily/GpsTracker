@@ -40,6 +40,7 @@ android {
 
 dependencies {
 
+    implementation("com.google.android.gms:play-services-location:20.0.0")
     implementation("org.osmdroid:osmdroid-android:6.1.10")
     implementation("com.github.MKergall:osmbonuspack:6.7.0")
 
