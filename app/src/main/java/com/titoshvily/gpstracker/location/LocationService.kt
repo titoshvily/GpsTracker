@@ -6,9 +6,11 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.location.Location
 import android.os.Build
 import android.os.IBinder
 import android.os.Looper
@@ -24,10 +26,15 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
 import com.titoshvily.gpstracker.MainActivity
 import com.titoshvily.gpstracker.R
+import org.osmdroid.util.GeoPoint
+
 
 class LocationService : Service() {
+    private var distance = 0.0f
     private lateinit var locRequest: LocationRequest
     private lateinit var locProvider: FusedLocationProviderClient
+    private var lastLocation: Location? = null
+    private lateinit var geoPointsList: ArrayList<GeoPoint>
 
     override fun onBind(intent: Intent?): IBinder? {
         return null
@@ -45,6 +52,7 @@ class LocationService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        geoPointsList = ArrayList()
         initLocation()
 
     }
@@ -99,12 +107,36 @@ class LocationService : Service() {
             .build()
     }
 
-private val locCallBack = object : LocationCallback(){
-    override fun onLocationResult(lResult: LocationResult) {
-        super.onLocationResult(lResult)
-        Log.d("MyLog", "${lResult.lastLocation?.latitude}")
+    private val locCallBack = object : LocationCallback() {
+        override fun onLocationResult(lResult: LocationResult) {
+            super.onLocationResult(lResult)
+            val currentLocation = lResult.lastLocation
+            if (lastLocation != null && currentLocation != null) {
+                distance += lastLocation?.distanceTo(currentLocation)!!
+                geoPointsList.add(GeoPoint(currentLocation.latitude, currentLocation.longitude))
+                val locModel = LocationModel(
+                    currentLocation.speed,
+                    distance,
+                    geoPointsList
+                )
+                sendLocData(locModel)
+            }
+            lastLocation = currentLocation
+
+
+
+        }
     }
-}
+
+
+
+    private fun sendLocData(locModel: LocationModel){
+        val i = Intent(LOC_MODEL_INTENT)
+        i.putExtra(LOC_MODEL_INTENT, locModel)
+        i.setPackage(packageName)
+        sendBroadcast(i)
+    }
+
     private fun initLocation(){
 
         locRequest = LocationRequest.create()
@@ -129,6 +161,7 @@ private val locCallBack = object : LocationCallback(){
     }
 
     companion object {
+        const val LOC_MODEL_INTENT = "loc_intent"
         private const val CHANNEL_ID = "location_service_channel"
         private const val NOTIFICATION_ID = 1
         var isRunning = false

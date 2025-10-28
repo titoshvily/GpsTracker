@@ -1,8 +1,11 @@
 package com.titoshvily.gpstracker.fragments
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
@@ -19,15 +22,19 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.MutableLiveData
 import com.google.android.material.snackbar.Snackbar
+import com.titoshvily.gpstracker.MainViewModel
 import com.titoshvily.gpstracker.R
 import com.titoshvily.gpstracker.databinding.FragmentMainBinding
+import com.titoshvily.gpstracker.location.LocationModel
 import com.titoshvily.gpstracker.location.LocationService
 import com.titoshvily.gpstracker.utils.DialogManager
 import com.titoshvily.gpstracker.utils.TimeUtils
 import org.osmdroid.config.Configuration
 import org.osmdroid.library.BuildConfig
+import org.osmdroid.util.Distance
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.util.Timer
@@ -36,10 +43,11 @@ import java.util.TimerTask
 class MainFragment : Fragment() {
     private var timer: Timer? = null
     private var startTime = 0L
-    private val timeData = MutableLiveData<String>()
+
     private var isServiceRunning = false
     private lateinit var binding: FragmentMainBinding
     private lateinit var requestLocationLauncher: ActivityResultLauncher<Array<String>>
+    private val model : MainViewModel by activityViewModels()
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +69,8 @@ class MainFragment : Fragment() {
         checkLocationPermission()
         checkServiceState()
         updateTime()
+        registerLocReceiver()
+        locationUpdates()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             activity?.startForegroundService(Intent(activity, LocationService::class.java))
         } else {
@@ -120,7 +130,7 @@ class MainFragment : Fragment() {
     }
 
     private fun updateTime(){
-        timeData.observe(viewLifecycleOwner){
+        model.timeData.observe(viewLifecycleOwner){
             binding.tvTime.text = it
         }
     }
@@ -132,12 +142,26 @@ class MainFragment : Fragment() {
         timer?.schedule(object : TimerTask(){
             override fun run() {
                 activity?.runOnUiThread {
-                    timeData.value = getCurrentTime()
+                    model.timeData.value = getCurrentTime()
                 }
             }
 
         }, 1000, 1000)
     }
+
+
+    @SuppressLint("DefaultLocale")
+    private fun getAverageSpeed(distance: Float): Float {
+        if (startTime == 0L) return 0f
+
+        val timeInSeconds = (System.currentTimeMillis() - startTime) / 1000f
+        if (timeInSeconds == 0f) return 0f
+
+        val avgSpeedMs = distance / timeInSeconds
+
+        return avgSpeedMs * 3.6f
+    }
+
 
     private fun getCurrentTime(): String{
         return "Time: ${TimeUtils.getTime(System.currentTimeMillis() - startTime)}"
@@ -164,6 +188,26 @@ class MainFragment : Fragment() {
                     startStopService()
                 }
             }
+        }
+    }
+
+    @SuppressLint("DefaultLocale")
+    private fun locationUpdates() = with(binding){
+        model.locationUpdates.observe(viewLifecycleOwner){
+            val distance = "Distance: ${String.format("%.1f", it.distance)} m"
+
+            val instantSpeedKmh = it.velocity * 3.6f
+            val velocity = "Speed: ${String.format("%.1f", instantSpeedKmh)} km/h"
+
+            val avgSpeedKmh = getAverageSpeed(it.distance)
+            val avgVelocity = "Average Speed: ${String.format("%.1f", avgSpeedKmh)} km/h"
+
+            tvDistance.text = distance
+            tvSpeed.text = velocity
+            tvAvgSpeed.text = avgVelocity
+
+            Log.d("SpeedDebug", "Instant: $instantSpeedKmh km/h, Avg: $avgSpeedKmh km/h")
+
         }
     }
 
@@ -252,6 +296,28 @@ class MainFragment : Fragment() {
                 startActivity(intent)
             }
             .show()
+    }
+
+
+
+    private val receiver = object : BroadcastReceiver(){
+        override fun onReceive(context: Context?, i: Intent?) {
+            if (i?.action == LocationService.LOC_MODEL_INTENT){
+                val locModel = i.getSerializableExtra(LocationService.LOC_MODEL_INTENT) as LocationModel
+                model.locationUpdates.value = locModel
+            }
+        }
+
+    }
+
+    private fun registerLocReceiver(){
+        val locFilter = IntentFilter(LocationService.LOC_MODEL_INTENT)
+        ContextCompat.registerReceiver(
+            requireActivity(),
+            receiver,
+            locFilter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
 
