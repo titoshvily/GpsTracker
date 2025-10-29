@@ -26,8 +26,10 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.MutableLiveData
 import com.google.android.material.snackbar.Snackbar
+import com.titoshvily.gpstracker.MainApp
 import com.titoshvily.gpstracker.MainViewModel
 import com.titoshvily.gpstracker.R
+import com.titoshvily.gpstracker.database.TrackItem
 import com.titoshvily.gpstracker.databinding.FragmentMainBinding
 import com.titoshvily.gpstracker.location.LocationModel
 import com.titoshvily.gpstracker.location.LocationService
@@ -45,6 +47,7 @@ import java.util.Timer
 import java.util.TimerTask
 
 class MainFragment : Fragment() {
+    private var locationModel : LocationModel? = null
     private var pl: Polyline? = null
     private var timer: Timer? = null
     private var startTime = 0L
@@ -53,7 +56,9 @@ class MainFragment : Fragment() {
     private var firstStart = true
     private lateinit var binding: FragmentMainBinding
     private lateinit var requestLocationLauncher: ActivityResultLauncher<Array<String>>
-    private val model : MainViewModel by activityViewModels()
+    private val model : MainViewModel by activityViewModels {
+        MainViewModel.ViewModelFactory((requireContext().applicationContext as MainApp).database)
+    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,6 +82,9 @@ class MainFragment : Fragment() {
         updateTime()
         registerLocReceiver()
         locationUpdates()
+        model.tracks.observe(viewLifecycleOwner){
+            Log.d("MyLog", "${it.size}")
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             activity?.startForegroundService(Intent(activity, LocationService::class.java))
         } else {
@@ -203,6 +211,16 @@ class MainFragment : Fragment() {
         return "Time: ${TimeUtils.getTime(System.currentTimeMillis() - startTime)}"
     }
 
+    private fun geoPointsToString(list: List<GeoPoint>) : String {
+
+        val sb = StringBuilder()
+        list.forEach {
+            sb.append("${it.latitude},${it.longitude}/")
+        }
+        Log.d("MyLog", "Points: $sb")
+        return sb.toString()
+    }
+
 
 
     private fun startStopService() {
@@ -212,15 +230,31 @@ class MainFragment : Fragment() {
             activity?.stopService(Intent(activity, LocationService::class.java))
             binding.fStartStop.setImageResource(R.drawable.ic_play)
             timer?.cancel()
-            DialogManager.showSaveDialog(requireContext(), object : DialogManager.Listener{
+            val track = getTrackItem()
+            DialogManager.showSaveDialog(requireContext(), track,object : DialogManager.Listener{
                 override fun onClick() {
-                    showToast("track saved!")
+                    showToast("Track saved")
+                    model.insertTrack(track)
                 }
 
             })
         }
         isServiceRunning = !isServiceRunning
 
+    }
+
+    @SuppressLint("DefaultLocale")
+    private fun getTrackItem(): TrackItem{
+
+
+        return TrackItem(
+            null,
+            getCurrentTime(),
+            TimeUtils.getDate(),
+            String.format("%.1f", locationModel?.distance?.div(1000) ?: 0),
+            String.format("%.1f", getAverageSpeed(locationModel?.distance ?: 0.0f)),
+            geoPointsToString(locationModel?.geoPointsList ?: listOf())
+        )
     }
 
     private fun onClicks(): View.OnClickListener {
@@ -247,6 +281,7 @@ class MainFragment : Fragment() {
             tvDistance.text = distance
             tvSpeed.text = velocity
             tvAvgSpeed.text = avgVelocity
+            locationModel = it
 
             updatePolyline(it.geoPointsList)
 

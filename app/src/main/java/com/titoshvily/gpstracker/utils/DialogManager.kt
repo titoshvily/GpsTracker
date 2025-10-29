@@ -9,6 +9,7 @@ import androidx.appcompat.app.AlertDialog
 import com.titoshvily.gpstracker.R
 import com.titoshvily.gpstracker.databinding.SaveDialogBinding
 import androidx.core.graphics.drawable.toDrawable
+import com.titoshvily.gpstracker.database.TrackItem
 
 object DialogManager {
     fun showLocEnableDialog(context: Context, listener: Listener){
@@ -30,13 +31,22 @@ object DialogManager {
     }
 
 
-    fun showSaveDialog(context: Context, listener: Listener){
+    fun showSaveDialog(context: Context, item: TrackItem?, listener: Listener){
         val builder = AlertDialog.Builder(context)
         val binding = SaveDialogBinding.inflate(LayoutInflater.from(context), null, false)
         builder.setView(binding.root)
         val dialog = builder.create()
         binding.apply {
+
+            val time = "${item?.time} "
+            val velocity = "${item?.velocity} km/h"
+            val distance = "${item?.distance} km"
+            tvTime.text = time
+            tvSpeed.text = velocity
+            tvDistance.text = distance
+
             bSave.setOnClickListener {
+
                 listener.onClick()
                 dialog.dismiss()
             }

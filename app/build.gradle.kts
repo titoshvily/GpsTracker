@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -39,6 +40,13 @@ android {
 }
 
 dependencies {
+
+    implementation("androidx.room:room-ktx:2.4.3")
+    ksp("androidx.room:room-compiler:2.4.3")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.5.1")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1")
+
+
 
     implementation("com.google.android.gms:play-services-location:20.0.0")
     implementation("org.osmdroid:osmdroid-android:6.1.10")
