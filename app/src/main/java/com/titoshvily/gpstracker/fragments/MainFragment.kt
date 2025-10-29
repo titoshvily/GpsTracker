@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
@@ -32,19 +33,24 @@ import com.titoshvily.gpstracker.location.LocationModel
 import com.titoshvily.gpstracker.location.LocationService
 import com.titoshvily.gpstracker.utils.DialogManager
 import com.titoshvily.gpstracker.utils.TimeUtils
+import com.titoshvily.gpstracker.utils.showToast
 import org.osmdroid.config.Configuration
 import org.osmdroid.library.BuildConfig
 import org.osmdroid.util.Distance
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.util.Timer
 import java.util.TimerTask
 
 class MainFragment : Fragment() {
+    private var pl: Polyline? = null
     private var timer: Timer? = null
     private var startTime = 0L
 
     private var isServiceRunning = false
+    private var firstStart = true
     private lateinit var binding: FragmentMainBinding
     private lateinit var requestLocationLauncher: ActivityResultLauncher<Array<String>>
     private val model : MainViewModel by activityViewModels()
@@ -84,6 +90,11 @@ class MainFragment : Fragment() {
         checkLocationPermission()
     }
 
+    override fun onDetach() {
+        super.onDetach()
+        requireActivity().unregisterReceiver(receiver)
+    }
+
     // --- Настройка OSM ---
 
     private fun settingsOsm() {
@@ -95,6 +106,8 @@ class MainFragment : Fragment() {
     }
 
     private fun initOsm() = with(binding) {
+        pl = Polyline()
+        pl?.outlinePaint?.color =  Color.BLUE
 
         map.controller.setZoom(20.0)
         val mLocProvider = GpsMyLocationProvider(activity)
@@ -104,6 +117,7 @@ class MainFragment : Fragment() {
         mLocOverlay.runOnFirstFix {
             map.overlays.clear()
             map.overlays.add(mLocOverlay)
+            map.overlays.add(pl)
         }
 
     }
@@ -122,6 +136,28 @@ class MainFragment : Fragment() {
                     showPermissionExplanationDialog("Для работы карты необходимо разрешение на геолокацию.")
                 }
             }
+    }
+
+
+    private fun addPoint(list: List<GeoPoint>){
+        pl?.addPoint(list[list.size-1])
+
+    }
+
+    private fun fillPolyline(list: List<GeoPoint>){
+        list.forEach {
+            pl?.addPoint(it)
+        }
+    }
+
+    private fun updatePolyline(list: List<GeoPoint>){
+        if (list.size > 1 && firstStart){
+            fillPolyline(list)
+            firstStart = false
+
+        } else {
+            addPoint(list)
+        }
     }
 
     private fun setOnClicks() = with(binding) {
@@ -176,6 +212,12 @@ class MainFragment : Fragment() {
             activity?.stopService(Intent(activity, LocationService::class.java))
             binding.fStartStop.setImageResource(R.drawable.ic_play)
             timer?.cancel()
+            DialogManager.showSaveDialog(requireContext(), object : DialogManager.Listener{
+                override fun onClick() {
+                    showToast("track saved!")
+                }
+
+            })
         }
         isServiceRunning = !isServiceRunning
 
@@ -206,7 +248,7 @@ class MainFragment : Fragment() {
             tvSpeed.text = velocity
             tvAvgSpeed.text = avgVelocity
 
-            Log.d("SpeedDebug", "Instant: $instantSpeedKmh km/h, Avg: $avgSpeedKmh km/h")
+            updatePolyline(it.geoPointsList)
 
         }
     }
