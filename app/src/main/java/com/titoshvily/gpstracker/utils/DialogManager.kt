@@ -41,7 +41,7 @@ object DialogManager {
             val time = "${item?.time} "
             val velocity = "${item?.velocity} km/h"
             val distance = "${item?.distance} km"
-            tvTime.text = time
+            tvDate.text = time
             tvSpeed.text = velocity
             tvDistance.text = distance
 

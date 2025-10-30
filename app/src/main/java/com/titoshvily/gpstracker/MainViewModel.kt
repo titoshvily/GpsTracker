@@ -14,13 +14,31 @@ import kotlinx.coroutines.launch
 class MainViewModel(db: MainDb): ViewModel() {
     val dao = db.getDao()
     val locationUpdates = MutableLiveData<LocationModel>()
+    val currentTrack = MutableLiveData<TrackItem>()
     val timeData = MutableLiveData<String>()
     val tracks = dao.getAllTracks().asLiveData()
+
+
+    val openDeleteDialog = MutableLiveData<TrackItem?>()
 
     fun insertTrack(trackItem: TrackItem) = viewModelScope.launch{
         dao.insertTrack(trackItem)
     }
 
+
+    fun deleteTrack(trackItem: TrackItem) = viewModelScope.launch{
+        dao.deleteTrack(trackItem)
+    }
+
+
+    fun onOpenDeleteDialog(trackItem: TrackItem) {
+        openDeleteDialog.value = trackItem
+    }
+
+
+    fun onDialogHandled() {
+        openDeleteDialog.value = null
+    }
 
     class ViewModelFactory(private val db: MainDb) : ViewModelProvider.Factory{
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -28,9 +46,6 @@ class MainViewModel(db: MainDb): ViewModel() {
                 return MainViewModel(db) as T
             }
             throw IllegalArgumentException("unknown viewmodel class")
-
         }
     }
-
-
 }

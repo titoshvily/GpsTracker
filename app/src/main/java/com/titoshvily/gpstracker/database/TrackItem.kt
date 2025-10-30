@@ -6,8 +6,9 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "Track")
 data class TrackItem(
+
     @PrimaryKey(autoGenerate = true)
-    val id: Int?,
+    val id: Long?,
 
     @ColumnInfo(name = "time")
     val time: String,

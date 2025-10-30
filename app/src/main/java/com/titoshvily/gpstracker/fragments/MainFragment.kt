@@ -25,6 +25,7 @@ import androidx.core.location.LocationManagerCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.MutableLiveData
+import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
 import com.titoshvily.gpstracker.MainApp
 import com.titoshvily.gpstracker.MainViewModel
@@ -54,6 +55,8 @@ class MainFragment : Fragment() {
 
     private var isServiceRunning = false
     private var firstStart = true
+
+    private lateinit var mLocOverlay: MyLocationNewOverlay
     private lateinit var binding: FragmentMainBinding
     private lateinit var requestLocationLauncher: ActivityResultLauncher<Array<String>>
     private val model : MainViewModel by activityViewModels {
@@ -85,17 +88,14 @@ class MainFragment : Fragment() {
         model.tracks.observe(viewLifecycleOwner){
             Log.d("MyLog", "${it.size}")
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            activity?.startForegroundService(Intent(activity, LocationService::class.java))
-        } else {
-            activity?.startService(Intent(activity, LocationService::class.java))
-        }
+
 
     }
 
     override fun onResume() {
         super.onResume()
         checkLocationPermission()
+        checkServiceState()
     }
 
     override fun onDetach() {
@@ -115,11 +115,13 @@ class MainFragment : Fragment() {
 
     private fun initOsm() = with(binding) {
         pl = Polyline()
-        pl?.outlinePaint?.color =  Color.BLUE
+        pl?.outlinePaint?.color = Color.parseColor(
+        PreferenceManager.getDefaultSharedPreferences(requireContext())
+            .getString("color_key", "#377BB4"))
 
         map.controller.setZoom(20.0)
         val mLocProvider = GpsMyLocationProvider(activity)
-        val mLocOverlay = MyLocationNewOverlay(mLocProvider, map)
+         mLocOverlay = MyLocationNewOverlay(mLocProvider, map)
         mLocOverlay.enableMyLocation()
         mLocOverlay.enableFollowLocation()
         mLocOverlay.runOnFirstFix {
@@ -168,14 +170,11 @@ class MainFragment : Fragment() {
         }
     }
 
-    private fun setOnClicks() = with(binding) {
-        val listener = onClicks()
-        fStartStop.setOnClickListener(listener)
-    }
+
 
     private fun updateTime(){
         model.timeData.observe(viewLifecycleOwner){
-            binding.tvTime.text = it
+            binding.tvDate.text = it
         }
     }
 
@@ -246,13 +245,16 @@ class MainFragment : Fragment() {
     @SuppressLint("DefaultLocale")
     private fun getTrackItem(): TrackItem{
 
+        val distance = locationModel?.distance ?: 0f
+        val distanceKm = distance / 1000f
+        val avgSpeed = getAverageSpeed(distance)
 
         return TrackItem(
             null,
             getCurrentTime(),
             TimeUtils.getDate(),
-            String.format("%.1f", locationModel?.distance?.div(1000) ?: 0),
-            String.format("%.1f", getAverageSpeed(locationModel?.distance ?: 0.0f)),
+            String.format("%.1f", distanceKm),
+            String.format("%.1f", avgSpeed),
             geoPointsToString(locationModel?.geoPointsList ?: listOf())
         )
     }
@@ -263,20 +265,35 @@ class MainFragment : Fragment() {
                 R.id.fStartStop -> {
                     startStopService()
                 }
+                R.id.fCenter -> {
+                    centerLocation()
+                }
             }
         }
+    }
+
+    private fun centerLocation(){
+        binding.map.controller.animateTo(mLocOverlay.myLocation)
+        mLocOverlay.enableFollowLocation()
+    }
+
+
+    private fun setOnClicks() = with(binding) {
+        val listener = onClicks()
+        fStartStop.setOnClickListener(listener)
+        fCenter.setOnClickListener(listener)
     }
 
     @SuppressLint("DefaultLocale")
     private fun locationUpdates() = with(binding){
         model.locationUpdates.observe(viewLifecycleOwner){
-            val distance = "Distance: ${String.format("%.1f", it.distance)} m"
+            val distance = "Distance: ${String.format("%.1f", it.distance)}"
 
             val instantSpeedKmh = it.velocity * 3.6f
-            val velocity = "Speed: ${String.format("%.1f", instantSpeedKmh)} km/h"
+            val velocity = "Speed: ${String.format("%.1f", instantSpeedKmh)}"
 
             val avgSpeedKmh = getAverageSpeed(it.distance)
-            val avgVelocity = "Average Speed: ${String.format("%.1f", avgSpeedKmh)} km/h"
+            val avgVelocity = "Average Speed: ${String.format("%.1f", avgSpeedKmh)}"
 
             tvDistance.text = distance
             tvSpeed.text = velocity
@@ -293,10 +310,13 @@ class MainFragment : Fragment() {
         if (isServiceRunning) {
             binding.fStartStop.setImageResource(R.drawable.ic_stop)
             startTimer()
+        } else {
+            binding.fStartStop.setImageResource(R.drawable.ic_play)
         }
     }
 
     private fun startLocationService() {
+        checkLocationPermission()
         val intent = Intent(requireContext(), LocationService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             requireContext().startForegroundService(intent)

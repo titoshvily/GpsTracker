@@ -42,6 +42,7 @@ android {
 dependencies {
 
     implementation("androidx.room:room-ktx:2.4.3")
+    implementation(libs.androidx.recyclerview)
     ksp("androidx.room:room-compiler:2.4.3")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.5.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1")
