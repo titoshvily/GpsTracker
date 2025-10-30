@@ -55,6 +55,7 @@ class MainFragment : Fragment() {
 
     private var isServiceRunning = false
     private var firstStart = true
+    private var isMapInitialized = false
 
     private lateinit var mLocOverlay: MyLocationNewOverlay
     private lateinit var binding: FragmentMainBinding
@@ -80,20 +81,26 @@ class MainFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setOnClicks()
-        checkLocationPermission()
+
         checkServiceState()
         updateTime()
         registerLocReceiver()
         locationUpdates()
+
+
         model.tracks.observe(viewLifecycleOwner){
-            Log.d("MyLog", "${it.size}")
+            Log.d("MyLog", "Tracks count: ${it.size}")
         }
 
 
+        if (!isMapInitialized) {
+            initOsm()
+        }
     }
 
     override fun onResume() {
         super.onResume()
+
         checkLocationPermission()
         checkServiceState()
     }
@@ -113,24 +120,29 @@ class MainFragment : Fragment() {
         Configuration.getInstance().userAgentValue = BuildConfig.APPLICATION_ID
     }
 
+    // MainFragment.kt
+
     private fun initOsm() = with(binding) {
+
         pl = Polyline()
         pl?.outlinePaint?.color = Color.parseColor(
-        PreferenceManager.getDefaultSharedPreferences(requireContext())
-            .getString("color_key", "#377BB4"))
+            PreferenceManager.getDefaultSharedPreferences(requireContext())
+                .getString("color_key", "#377BB4")
+        )
 
         map.controller.setZoom(20.0)
         val mLocProvider = GpsMyLocationProvider(activity)
-         mLocOverlay = MyLocationNewOverlay(mLocProvider, map)
-        mLocOverlay.enableMyLocation()
-        mLocOverlay.enableFollowLocation()
-        mLocOverlay.runOnFirstFix {
-            map.overlays.clear()
-            map.overlays.add(mLocOverlay)
-            map.overlays.add(pl)
-        }
+        mLocOverlay = MyLocationNewOverlay(mLocProvider, map)
 
+
+        map.overlays.add(mLocOverlay)
+        map.overlays.add(pl)
+
+
+        mLocOverlay.enableMyLocation()
+        isMapInitialized = true
     }
+
 
 
     private fun registerPermissionLauncher() {
@@ -272,10 +284,19 @@ class MainFragment : Fragment() {
         }
     }
 
-    private fun centerLocation(){
-        binding.map.controller.animateTo(mLocOverlay.myLocation)
-        mLocOverlay.enableFollowLocation()
+
+    private fun centerLocation() {
+
+        if (::mLocOverlay.isInitialized && mLocOverlay.myLocation != null) {
+            binding.map.controller.animateTo(mLocOverlay.myLocation)
+
+            mLocOverlay.enableFollowLocation()
+        } else {
+
+            showToast("Местоположение еще не определено")
+        }
     }
+
 
 
     private fun setOnClicks() = with(binding) {
@@ -347,19 +368,33 @@ class MainFragment : Fragment() {
     }
 
 
+    // MainFragment.kt
+
     private fun checkGpsAndInitMap() {
         if (isLocationEnabled()) {
-            initOsm()
+            if (!isMapInitialized) initOsm()
+
+
+            mLocOverlay.enableMyLocation()
+            mLocOverlay.enableFollowLocation()
+
+
+            mLocOverlay.runOnFirstFix {
+                activity?.runOnUiThread {
+                    centerLocation()
+                }
+            }
         } else {
+
             DialogManager.showLocEnableDialog(requireActivity() as AppCompatActivity, object :
                 DialogManager.Listener {
                 override fun onClick() {
                     startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                 }
-
             })
         }
     }
+
 
 
     private fun getPermissionsToRequest(): Array<String> {
