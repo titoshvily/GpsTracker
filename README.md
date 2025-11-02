@@ -1,3 +1,9 @@
+<img width="606" height="1280" alt="image" src="https://github.com/user-attachments/assets/2d46e880-1fbb-4e64-8f79-8da6b5d14141" />  <img width="606" height="1280" alt="image" src="https://github.com/user-attachments/assets/13158147-65aa-4289-a8a8-9b0a5747438a" />
+
+
+
+
+
 # GPS Tracker
 
 GPS Tracker — это простое и легкое Android-приложение для записи GPS-треков. Оно позволяет отслеживать маршрут, сохранять его и просматривать основную статистику: дистанцию, время в пути, среднюю и текущую скорость. Идеально подходит для отслеживания пеших прогулок, пробежек, поездок на велосипеде и автомобиле.
