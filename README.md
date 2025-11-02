@@ -28,7 +28,7 @@ GPS Tracker — это простое и легкое Android-приложени
 - **Архитектура**: MVVM (Model-View-ViewModel)
 - **База данных**: Room
 - **Карты**: osmdroid (OpenStreetMap)
-- **Геолокация**: FusedLocationProvider + Foreground Service
+- **Геолокация**: FusedLocationProvider
 - **UI**: Material Components, ViewBinding
 - **Асинхронность**: Kotlin Coroutines, LiveData
 
